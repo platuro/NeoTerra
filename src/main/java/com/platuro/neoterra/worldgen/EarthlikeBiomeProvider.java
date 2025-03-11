@@ -141,6 +141,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
             Biome ominous_woods = getBOPBiomeOptional(bopClass, "ominous_woods");
             Biome bamboo_forest = getBOPBiomeOptional(bopClass, "bamboo_forest");
             BOP_VOLCANO = getBOPBiomeOptional(bopClass, "volcanic_island");
+            Biome cherry_blossom_grove = getBOPBiomeOptional(bopClass, "cherry_blossom_grove");
 
             // 3) If they are not null, add them to the relevant list
             if (alps != null) {
@@ -175,6 +176,9 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
             }
             if (bamboo_forest != null) {
                 warmVanilla.add(bamboo_forest);
+            }
+            if(cherry_blossom_grove != null) {
+                warmVanilla.add(cherry_blossom_grove);
             }
 
             System.out.println("Biomes O' Plenty detected! Added some BOP biome Optionals to arrays.");
