@@ -66,4 +66,7 @@ jobs:
           release_name: "Latest NeoTerra Build"
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+      
 
