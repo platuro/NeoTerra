@@ -17,7 +17,7 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: ☕ Set up JDK 8
+      - name: ☕ Set up JDK 8 (Required for Minecraft 1.12.2)
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
@@ -29,14 +29,25 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-cache-v2-${{ hashFiles('**/*.gradle*', '**/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: 🛠️ Grant Execute Permissions to Gradle
+      - name: ⬇️ Set Up Gradle Wrapper for 4.9
+        run: |
+          rm -rf gradle/wrapper gradlew gradlew.bat  # Remove any broken Gradle files
+          curl -sLO https://services.gradle.org/distributions/gradle-4.9-bin.zip
+          mkdir -p gradle/wrapper
+          unzip -q gradle-4.9-bin.zip -d gradle/wrapper
+          rm gradle-4.9-bin.zip
+
+      - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: 🏗️ Build the Mod
+      - name: 🔍 Debug: List Files Before Build
+        run: ls -R
+
+      - name: 🏗️ Build the Mod with Gradle 4.9
         run: ./gradlew build --stacktrace --info
 
       - name: 📦 Upload Built Mod Artifact
