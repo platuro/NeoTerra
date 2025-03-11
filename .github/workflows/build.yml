@@ -44,7 +44,7 @@ jobs:
       - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: 🔍 Debug: List Files Before Build
+      - name: 🔍 List Files Before Build
         run: ls -R
 
       - name: 🏗️ Build the Mod with Gradle 4.9
