@@ -1,7 +1,7 @@
-# 🌍 TerraMod - Earth-Like World Generation for Minecraft 1.12.2  
+# 🌍 NeoTerra - Earth-Like World Generation for Minecraft 1.12.2  
 
-## 📌 About TerraMod  
-**TerraMod** brings a **realistic, Earth-like world generation** to Minecraft 1.12.2.
+## 📌 About NeoTerra  
+**NeoTerra** brings a **realistic, Earth-like world generation** to Minecraft 1.12.2.
 
 ## 🌎 Features  
 ✅ **Earth-Like World Generation** - A realistic world with **continents, oceans, and biomes** based on latitude.  
@@ -17,7 +17,7 @@
 - 🌿 [Biomes O' Plenty (BOP)](https://www.curseforge.com/minecraft/mc-mods/biomes-o-plenty)  
 
 ## 🛠️ Installation  
-1️⃣ **Download the latest TerraMod `.jar`** from the [Releases](https://github.com/platuro/NeoTerra/releases) section.  
+1️⃣ **Download the latest NeoTerra-Mod `.jar`** from the [Releases](https://github.com/platuro/NeoTerra/releases) section.  
 2️⃣ **Place it in your `mods` folder** (`.minecraft/mods/`).  
 3️⃣ **Ensure you have Forge 1.12.2 installed**.  
 4️⃣ **Launch the game & explore a realistic world!** 🌍  
