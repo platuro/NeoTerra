@@ -43,12 +43,11 @@ jobs:
             gradle wrapper
           fi
 
-      - name: 📦 Download Gradle Wrapper (Force Update)
-        run: |
-          ./gradlew wrapper --gradle-version 4.9 --distribution-type bin
-
       - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
+
+      - name: 📦 Download Gradle Wrapper (Force Update)
+        run: ./gradlew wrapper --gradle-version 4.9 --distribution-type bin
 
       - name: 🏗️ Build the Mod with Gradle
         run: ./gradlew build --stacktrace --info
