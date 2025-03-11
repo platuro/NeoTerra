@@ -1,0 +1,16 @@
+[
+{
+  "modid": "neoterra",
+  "name": "NeoTerra",
+  "description": "A earth-like mod",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Platuro"],
+  "credits": "Platuro",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
