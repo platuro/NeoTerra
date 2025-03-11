@@ -24,8 +24,8 @@ import java.util.Random;
 public class EarthlikeBiomeProvider extends BiomeProvider {
 
     // ~~~~~~~~~ World & Boundaries ~~~~~~~~~
-    private static final int MAX_PLANET_WIDTH = 8000;
-    private static final int X_FADE_BAND      = 1000;
+    private static final int MAX_PLANET_WIDTH = 10000;
+    private static final int X_FADE_BAND      = 3000;
 
     private static final int POLAR_Z_LIMIT    = 4000;
     private static final int POLAR_FADE_BAND  = 800;
@@ -60,10 +60,10 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
      *   latVal>0.25 => Warm
      *   else => Hot
      */
-    private static final float FROZEN_START = 0.9f;
-    private static final float COLD_START   = 0.6f;
-    private static final float WARM_START   = 0.2f;
-    private static final float CLIMATE_FADE = 0.05f;
+    private static final float FROZEN_START = 0.99f;  // ~75°-90° latitude (Polar regions)
+    private static final float COLD_START   = 0.75f;  // ~50°-75° latitude (Cold temperate)
+    private static final float WARM_START   = 0.30f;  // ~20°-50° latitude (Warm temperate & subtropical)
+    private static final float CLIMATE_FADE = 0.08f;  // Smooth biome transitions
 
     // ~~~~~~~~~ Vanilla Biome Arrays ~~~~~~~~~
     private static final List<Biome> FROZEN_BASE = new ArrayList<>(Arrays.asList(
@@ -91,6 +91,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static Biome[] COLD_BIOMES;
     private static Biome[] WARM_BIOMES;
     private static Biome[] HOT_BIOMES;
+    private static Biome BOP_VOLCANO;
 
     // ~~~~~~~~~ Sub-biome lumps ~~~~~~~~~
     private static final double BIOME_PATCH_SCALE   = 0.001;
@@ -100,7 +101,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
 
     // ~~~~~~~~~ Wave for lat & polar ~~~~~~~~~
     private static final double WAVE_SCALE     = 0.0006;
-    private static final double WAVE_AMPLITUDE = 0.06;
+    private static final double WAVE_AMPLITUDE = 0.02;
 
     private static final double POLAR_WAVE_SCALE     = 0.001;
     private static final double POLAR_WAVE_AMPLITUDE = 100.0;
@@ -139,6 +140,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
             Biome grove  = getBOPBiomeOptional(bopClass, "grove");
             Biome ominous_woods = getBOPBiomeOptional(bopClass, "ominous_woods");
             Biome bamboo_forest = getBOPBiomeOptional(bopClass, "bamboo_forest");
+            BOP_VOLCANO = getBOPBiomeOptional(bopClass, "volcanic_island");
 
             // 3) If they are not null, add them to the relevant list
             if (alps != null) {
@@ -361,9 +363,9 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
 
         // 4) ocean thresholds with cold climate check
         if (finalVal < DEEP_OCEAN_LEVEL) {
-            return Biomes.DEEP_OCEAN;
+            return pickSubBiome(Biomes.DEEP_OCEAN, x, z);
         } else if (finalVal < OCEAN_LEVEL) {
-            return Biomes.OCEAN;
+            return pickSubBiome(Biomes.OCEAN, x, z);
         }
 
         if(isColdClimate) {
@@ -412,16 +414,87 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         return pickSubBiome(HOT_BIOMES, x, z);
     }
 
-    // ~~~~~~~~~ Sub-biome lumps ~~~~~~~~~
+    // ~~~~~~~~~ Sub-biome lumps with ocean-restricted rare biomes ~~~~~~~~~
     private Biome pickSubBiome(Biome[] arr, int x, int z) {
         double val = fractalNoise(subBiomeNoise, x, z,
                 BIOME_PATCH_OCTAVES, BIOME_PATCH_PERSIST,
                 BIOME_PATCH_SCALE, BIOME_PATCH_LACUNAR);
         double t = (val + 1.0) / 2.0;
-        int idx = (int)(t * arr.length);
+        int idx = (int) (t * arr.length);
         if (idx >= arr.length) idx = arr.length - 1;
-        return arr[idx];
+        return arr[idx];  // Default sub-biome
     }
+
+    private Biome pickSubBiome(Biome baseBiome, int x, int z) {
+        // 1️⃣ Check if this is a deep ocean biome
+        boolean isDeepOcean = baseBiome == Biomes.DEEP_OCEAN;
+
+        // 2️⃣ Calculate normalized latitude (0 at equator, 1 at pole)
+        float baseLatVal = (float) Math.abs(z) / POLE_LIMIT;
+
+        // 3️⃣ Generate noise values for rare biome selection
+        double rareBiomeNoise = fractalNoise(subBiomeNoise, x, z, 3, 0.5, 0.0004, 2.0);
+        double rareBiomeChance = (rareBiomeNoise + 1.0) / 2.0;  // Normalize to [0,1]
+        double breakUpNoise = fractalNoise(subBiomeNoise, x, z, 4, 0.6, 0.002, 3.0);
+
+        // 4️⃣ Additional wavy effect for smoother blending
+        double waveEffect = fractalNoise(waveNoise, x, z, 2, 0.5, 0.0005, 3.0) * 0.1;
+        baseLatVal = Math.min(1.0f, Math.max(0.0f, baseLatVal + (float) waveEffect)); // Apply wave shift
+
+        // 5️⃣ Check if within safe world boundaries (No islands in fade-out regions!)
+        double distanceFromEdge = MAX_PLANET_WIDTH - Math.abs(x);
+        double edgeFadeFactor = Math.min(1.0, distanceFromEdge / X_FADE_BAND);
+        if (edgeFadeFactor < 0.6) {
+            return baseBiome;  // Too close to the edge, no island spawn!
+        }
+
+        if (isDeepOcean) {
+            // 6️⃣ Build a list of all eligible rare biomes
+            List<Biome> eligibleBiomes = new ArrayList<>();
+
+            // Mushroom Island eligibility criteria
+            if (baseLatVal < 0.9 && rareBiomeChance > 0.84 && breakUpNoise < 0.1) {
+                eligibleBiomes.add(Biomes.MUSHROOM_ISLAND);
+            }
+
+            // Volcano eligibility criteria
+            if (BOP_VOLCANO != null &&
+                    baseLatVal > 0.2f && baseLatVal < 0.7f &&
+                    rareBiomeChance > 0.7 && breakUpNoise < 0.3) {
+                eligibleBiomes.add(BOP_VOLCANO);
+            }
+
+            if (!eligibleBiomes.isEmpty()) {
+                // 7️⃣ Apply Island Spacing & Soft Boundaries
+                final int ISLAND_SPACING = 1200;  // More spacing for less clustering
+                final int ISLAND_RADIUS = 300;    // Slightly larger island radius
+
+                int cellX = Math.floorDiv(x, ISLAND_SPACING);
+                int cellZ = Math.floorDiv(z, ISLAND_SPACING);
+                int centerX = cellX * ISLAND_SPACING + ISLAND_SPACING / 2;
+                int centerZ = cellZ * ISLAND_SPACING + ISLAND_SPACING / 2;
+
+                double dx = x - centerX;
+                double dz = z - centerZ;
+                double distance = Math.sqrt(dx * dx + dz * dz);
+
+                // Use noise for extra wavy effect in island placement
+                double islandWave = fractalNoise(subBiomeNoise, x, z, 2, 0.6, 0.0008, 2.5);
+                boolean isWithinIslandRadius = (distance <= ISLAND_RADIUS + (islandWave * 50));
+
+                // 🚫 Final Check: Don't generate islands outside of safe boundaries!
+                if (isWithinIslandRadius && edgeFadeFactor > 0.6) {
+                    double selectionNoise = fractalNoise(subBiomeNoise, cellX, cellZ, 3, 0.7, 0.001, 2.5);
+                    int index = (int) (Math.abs(selectionNoise) * eligibleBiomes.size()) % eligibleBiomes.size();
+                    return eligibleBiomes.get(index);
+                }
+            }
+        }
+
+        // 8️⃣ Default: return the base deep ocean biome
+        return baseBiome;
+    }
+
 
     private Biome blendTwoBiomes(Biome[] arrA, Biome[] arrB, float alpha, int x, int z) {
         return (alpha < 0.5f)
