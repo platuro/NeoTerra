@@ -57,3 +57,13 @@ jobs:
         with:
           name: NeoTerra-Mod
           path: build/libs/*.jar
+
+      - name: 📤 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/libs/*.jar
+          tag_name: latest
+          release_name: "Latest NeoTerra Build"
+          draft: false
+          prerelease: false
+
