@@ -33,14 +33,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: 🔍 List Repository Files
+      - name: 🔍 Check Repository Files
         run: ls -l
 
-      - name: ⬇️ Generate Gradle Wrapper (If Missing)
+      - name: ⬇️ Ensure Gradle Wrapper Exists
         run: |
           if [ ! -f "gradlew" ]; then
+            echo "⚠️ Gradle wrapper missing! Regenerating..."
             gradle wrapper
           fi
+
+      - name: 📦 Download Gradle Wrapper (Force Update)
+        run: |
+          ./gradlew wrapper --gradle-version 4.9 --distribution-type bin
 
       - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
