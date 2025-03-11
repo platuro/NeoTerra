@@ -33,21 +33,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: ⬇️ Set Up Gradle Wrapper for 4.9
+      - name: 🔍 List Repository Files
+        run: ls -l
+
+      - name: ⬇️ Generate Gradle Wrapper (If Missing)
         run: |
-          rm -rf gradle/wrapper gradlew gradlew.bat  # Remove any broken Gradle files
-          curl -sLO https://services.gradle.org/distributions/gradle-4.9-bin.zip
-          mkdir -p gradle/wrapper
-          unzip -q gradle-4.9-bin.zip -d gradle/wrapper
-          rm gradle-4.9-bin.zip
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper
+          fi
 
       - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: 🔍 List Files Before Build
-        run: ls -R
-
-      - name: 🏗️ Build the Mod with Gradle 4.9
+      - name: 🏗️ Build the Mod with Gradle
         run: ./gradlew build --stacktrace --info
 
       - name: 📦 Upload Built Mod Artifact
