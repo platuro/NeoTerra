@@ -37,7 +37,7 @@ jobs:
         run: ./gradlew build
 
       - name: Upload built mod artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: NeoTerra-Mod
           path: build/libs/*.jar
