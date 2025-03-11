@@ -3,10 +3,10 @@ name: Build & Package NeoTerra
 on:
   push:
     branches:
-      - main  # Runs on push to main branch
+      - main
   pull_request:
     branches:
-      - main  # Runs on PR to main
+      - main
 
 jobs:
   build:
@@ -40,14 +40,11 @@ jobs:
         run: |
           if [ ! -f "gradlew" ]; then
             echo "⚠️ Gradle wrapper missing! Regenerating..."
-            gradle wrapper
+            gradle wrapper --gradle-version 4.9 --distribution-type bin
           fi
 
       - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
-
-      - name: 📦 Download Gradle Wrapper (Force Update)
-        run: ./gradlew wrapper --gradle-version 4.9 --distribution-type bin
 
       - name: 🏗️ Build the Mod with Gradle
         run: ./gradlew build --stacktrace --info
