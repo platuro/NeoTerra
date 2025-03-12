@@ -1,6 +1,7 @@
 package com.platuro.neoterra.worldgen;
 
 import com.platuro.neoterra.config.BiomeConfig;
+import com.platuro.neoterra.helpers.BOP;
 import net.minecraft.init.Biomes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
@@ -26,15 +27,18 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
 
     // ~~~~~~~~~ World & Boundaries ~~~~~~~~~
     private static final int MAX_PLANET_WIDTH = BiomeConfig.MAX_WORLD_WIDTH;
-    private static final int X_FADE_BAND      = (int) (BiomeConfig.MAX_WORLD_WIDTH * 0.2);
+    private static final int X_FADE_BAND      = 500;
 
-    private static final int POLAR_Z_LIMIT    = BiomeConfig.MAX_WORLD_HEIGHT;
-    private static final int POLAR_FADE_BAND  = (int) (BiomeConfig.MAX_WORLD_HEIGHT * 0.2);
+    private static final int Z_FADE_BAND      = (int) (BiomeConfig.MAX_WORLD_HEIGHT * 0.4);
+    private static final int POLAR_Z_LIMIT    = BiomeConfig.MAX_WORLD_HEIGHT - Z_FADE_BAND;
+    private static final int POLAR_FADE_BAND  = (int) ((BiomeConfig.MAX_WORLD_HEIGHT - Z_FADE_BAND) * 0.2);
+
+    private static final float OVERALL_MULTIPLIER = (float) ((BiomeConfig.MAX_WORLD_WIDTH + BiomeConfig.MAX_WORLD_HEIGHT) / 2) / 10000;
 
     // ~~~~~~~~~ Fractal Noise for Ocean ~~~~~~~~~
     private static final int    CONT_OCTAVES  = 5;
     private static final double CONT_PERSIST  = 0.5;
-    private static final double CONT_SCALE    = 0.0002 / BiomeConfig.CONTINENT_SCALE_MULTIPLIER;
+    private static final double CONT_SCALE    = 0.0002 / (BiomeConfig.CONTINENT_SCALE_MULTIPLIER * OVERALL_MULTIPLIER);
     private static final double CONT_LACUNAR  = 2.0;
 
     private static final int    DETAIL_OCTAVES   = 2;
@@ -51,7 +55,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static final double BEACH_LEVEL      = -0.07;
 
     // ~~~~~~~~~ Lat effect & Climate Zones ~~~~~~~~~
-    private static final float  POLE_LIMIT   = BiomeConfig.MAX_WORLD_HEIGHT - POLAR_FADE_BAND;
+    private static final float  POLE_LIMIT   = BiomeConfig.MAX_WORLD_HEIGHT - Z_FADE_BAND - POLAR_FADE_BAND;
 
     private static final float FROZEN_START = BiomeConfig.FROZEN_START;  // ~75°-90° latitude (Polar regions)
     private static final float COLD_START   = BiomeConfig.COLD_START;  // ~50°-75° latitude (Cold temperate)
@@ -87,7 +91,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static Biome BOP_VOLCANO;
 
     // ~~~~~~~~~ Sub-biome lumps ~~~~~~~~~
-    private static final double BIOME_PATCH_SCALE   = 0.001;
+    private static final double BIOME_PATCH_SCALE   = 0.0007 / (OVERALL_MULTIPLIER * 2);
     private static final int    BIOME_PATCH_OCTAVES = 4;
     private static final double BIOME_PATCH_PERSIST = 0.5;
     private static final double BIOME_PATCH_LACUNAR = 2.0;
@@ -105,6 +109,8 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private final NoiseGeneratorSimplex subBiomeNoise;
     private final NoiseGeneratorSimplex waveNoise;
     private final NoiseGeneratorSimplex polarWaveNoise;
+    private final NoiseGeneratorSimplex biomeClusterNoise; // New noise for blobs
+
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //                 BOP REFLECTION
@@ -122,7 +128,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
             Class<?> bopClass = Class.forName("biomesoplenty.api.biome.BOPBiomes");
 
             // 2) For each BOP field, we do getBOPBiomeOptional(bopClass, "alps") etc.
-            Biome alps    = getBOPBiomeOptional(bopClass, "alps");
+            Biome alps    = BOP.getBOPBiome("alps");
             Biome tundra  = getBOPBiomeOptional(bopClass, "tundra");
             Biome orchard = getBOPBiomeOptional(bopClass, "orchard");
             Biome lushDesert = getBOPBiomeOptional(bopClass, "lush_desert");
@@ -223,6 +229,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         this.subBiomeNoise  = new NoiseGeneratorSimplex(randSubBiome);
         this.waveNoise      = new NoiseGeneratorSimplex(randWave);
         this.polarWaveNoise = new NoiseGeneratorSimplex(randPolarWave);
+        this.biomeClusterNoise = new NoiseGeneratorSimplex(new Random(seed + 5));
     }
 
     public EarthlikeBiomeProvider() {
@@ -412,15 +419,32 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     }
 
     // ~~~~~~~~~ Sub-biome lumps with ocean-restricted rare biomes ~~~~~~~~~
-    private Biome pickSubBiome(Biome[] arr, int x, int z) {
+    private Biome pickSubBiome(Biome[] biomes, int x, int z) {
         double val = fractalNoise(subBiomeNoise, x, z,
                 BIOME_PATCH_OCTAVES, BIOME_PATCH_PERSIST,
                 BIOME_PATCH_SCALE, BIOME_PATCH_LACUNAR);
-        double t = (val + 1.0) / 2.0;
-        int idx = (int) (t * arr.length);
-        if (idx >= arr.length) idx = arr.length - 1;
-        return arr[idx];  // Default sub-biome
+        double t = (val + 1.0) / 2.0; // Normalize to range [0,1]
+
+        // Weighted Biome Selection
+        double totalWeight = 0;
+        for (Biome biome : biomes) {
+            totalWeight += BiomeConfig.getBiomeWeight(biome);
+        }
+
+        double randomValue = t * totalWeight;
+        double cumulativeWeight = 0;
+
+        for (Biome biome : biomes) {
+            cumulativeWeight += BiomeConfig.getBiomeWeight(biome);
+            if (randomValue <= cumulativeWeight) {
+                return biome;
+            }
+        }
+
+        return biomes[biomes.length - 1]; // Default fallback
     }
+
+
 
     private Biome pickSubBiome(Biome baseBiome, int x, int z) {
         // 1️⃣ Check if this is a deep ocean biome

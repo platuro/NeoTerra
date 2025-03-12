@@ -12,8 +12,8 @@ import net.minecraft.world.WorldServer;
 
 public class WorldBoundaryHandler {
 
-    private static final int MAX_PLANET_WIDTH = (int) (BiomeConfig.MAX_WORLD_WIDTH * 0.8);
-    private static final int POLAR_Z_LIMIT = BiomeConfig.MAX_WORLD_HEIGHT + (BiomeConfig.POLAR_WAVES * 2);
+    private static final int MAX_PLANET_WIDTH = (int) (BiomeConfig.MAX_WORLD_WIDTH - 200);
+    private static final int POLAR_Z_LIMIT = (int) (BiomeConfig.MAX_WORLD_HEIGHT - (BiomeConfig.MAX_WORLD_HEIGHT * 0.2));
 
     public static void handlePlayerTeleportation(EntityPlayer player) {
         if (player.world.isRemote) return; // Server-side only
