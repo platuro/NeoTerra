@@ -1,5 +1,6 @@
 package com.platuro.neoterra.worldgen;
 
+import com.platuro.neoterra.config.BiomeConfig;
 import net.minecraft.init.Biomes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
@@ -24,11 +25,11 @@ import java.util.Random;
 public class EarthlikeBiomeProvider extends BiomeProvider {
 
     // ~~~~~~~~~ World & Boundaries ~~~~~~~~~
-    private static final int MAX_PLANET_WIDTH = 10000;
-    private static final int X_FADE_BAND      = 3000;
+    private static final int MAX_PLANET_WIDTH = BiomeConfig.MAX_WORLD_WIDTH;
+    private static final int X_FADE_BAND      = (int) (BiomeConfig.MAX_WORLD_WIDTH * 0.2);
 
-    private static final int POLAR_Z_LIMIT    = 4000;
-    private static final int POLAR_FADE_BAND  = 800;
+    private static final int POLAR_Z_LIMIT    = BiomeConfig.MAX_WORLD_HEIGHT;
+    private static final int POLAR_FADE_BAND  = (int) (BiomeConfig.MAX_WORLD_HEIGHT * 0.2);
 
     // ~~~~~~~~~ Fractal Noise for Ocean ~~~~~~~~~
     private static final int    CONT_OCTAVES  = 5;
@@ -42,28 +43,20 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static final double DETAIL_LACUNAR   = 2.0;
     private static final double DETAIL_AMPLITUDE = 0.01;
 
-    private static final double SHIFT_VALUE = -0.27;
+    private static final double SHIFT_VALUE = BiomeConfig.WORLD_SHIFT_VALUE - 0.27;
 
     // ~~~~~~~~~ Ocean & Beach thresholds ~~~~~~~~~
     private static final double DEEP_OCEAN_LEVEL = -0.4;
     private static final double OCEAN_LEVEL      = -0.10;
     private static final double BEACH_LEVEL      = -0.07;
-    private static final double SECOND_BEACH_LEVEL      = -0.1;
 
     // ~~~~~~~~~ Lat effect & Climate Zones ~~~~~~~~~
-    private static final float  POLE_LIMIT   = 3000f;
+    private static final float  POLE_LIMIT   = BiomeConfig.MAX_WORLD_HEIGHT;
 
-    /**
-     * latVal in [0..1].
-     *   latVal>0.75 => Frozen
-     *   latVal>0.50 => Cold
-     *   latVal>0.25 => Warm
-     *   else => Hot
-     */
-    private static final float FROZEN_START = 0.99f;  // ~75°-90° latitude (Polar regions)
-    private static final float COLD_START   = 0.75f;  // ~50°-75° latitude (Cold temperate)
-    private static final float WARM_START   = 0.30f;  // ~20°-50° latitude (Warm temperate & subtropical)
-    private static final float CLIMATE_FADE = 0.08f;  // Smooth biome transitions
+    private static final float FROZEN_START = BiomeConfig.FROZEN_START;  // ~75°-90° latitude (Polar regions)
+    private static final float COLD_START   = BiomeConfig.COLD_START;  // ~50°-75° latitude (Cold temperate)
+    private static final float WARM_START   = BiomeConfig.WARM_START;  // ~20°-50° latitude (Warm temperate & subtropical)
+    private static final float CLIMATE_FADE = BiomeConfig.CLIMATE_FADE;  // Smooth biome transitions
 
     // ~~~~~~~~~ Vanilla Biome Arrays ~~~~~~~~~
     private static final List<Biome> FROZEN_BASE = new ArrayList<>(Arrays.asList(
