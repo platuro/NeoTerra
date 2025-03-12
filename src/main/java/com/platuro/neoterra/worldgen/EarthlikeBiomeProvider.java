@@ -34,7 +34,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     // ~~~~~~~~~ Fractal Noise for Ocean ~~~~~~~~~
     private static final int    CONT_OCTAVES  = 5;
     private static final double CONT_PERSIST  = 0.5;
-    private static final double CONT_SCALE    = 0.0002;
+    private static final double CONT_SCALE    = 0.0002 / BiomeConfig.CONTINENT_SCALE_MULTIPLIER;
     private static final double CONT_LACUNAR  = 2.0;
 
     private static final int    DETAIL_OCTAVES   = 2;
@@ -51,7 +51,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static final double BEACH_LEVEL      = -0.07;
 
     // ~~~~~~~~~ Lat effect & Climate Zones ~~~~~~~~~
-    private static final float  POLE_LIMIT   = BiomeConfig.MAX_WORLD_HEIGHT;
+    private static final float  POLE_LIMIT   = BiomeConfig.MAX_WORLD_HEIGHT - POLAR_FADE_BAND;
 
     private static final float FROZEN_START = BiomeConfig.FROZEN_START;  // ~75°-90° latitude (Polar regions)
     private static final float COLD_START   = BiomeConfig.COLD_START;  // ~50°-75° latitude (Cold temperate)
@@ -97,7 +97,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static final double WAVE_AMPLITUDE = 0.02;
 
     private static final double POLAR_WAVE_SCALE     = 0.001;
-    private static final double POLAR_WAVE_AMPLITUDE = 100.0;
+    private static final double POLAR_WAVE_AMPLITUDE = BiomeConfig.POLAR_WAVES;
 
     // ~~~~~~~~~ NOISE INSTANCES ~~~~~~~~~
     private final NoiseGeneratorSimplex continentNoise;

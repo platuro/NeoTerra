@@ -1,5 +1,6 @@
 package com.platuro.neoterra;
 
+import com.platuro.neoterra.config.BiomeConfig;
 import com.platuro.neoterra.handlers.PlayerEventHandler;
 import com.platuro.neoterra.worldgen.EarthlikeBiomeProvider;
 import com.platuro.neoterra.worldgen.NeoOreGenerator;
@@ -32,11 +33,15 @@ public class ClimateMod {
 
     private static Logger logger = LogManager.getLogger(NAME);
 
+    private static File configFileBiome;
+
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         logger = event.getModLog();
         logger.info("NeoClimate PreInit completed.");
         File configDir = event.getModConfigurationDirectory();
+        configFileBiome = new File(configDir, "neoterra/biome_config.cfg");
+        BiomeConfig.loadConfig(configFileBiome);
         //new NeoOreGenerator(configDir);
     }
 
@@ -66,6 +71,7 @@ public class ClimateMod {
 
     @SubscribeEvent
     public static void onWorldLoad(WorldEvent.Load event) {
+        BiomeConfig.loadConfig(configFileBiome);
         World world = event.getWorld();
 
         if (world.provider instanceof WorldProviderSurface) {
