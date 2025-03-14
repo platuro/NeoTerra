@@ -4,6 +4,7 @@ import com.platuro.neoterra.config.BiomeConfig;
 import com.platuro.neoterra.helpers.BOP;
 import net.minecraft.init.Biomes;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.gen.NoiseGeneratorSimplex;
@@ -515,6 +516,36 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         // 8️⃣ Default: return the base deep ocean biome
         return baseBiome;
     }
+
+    public BlockPos findSpawnLocation(World world) {
+        Random rand = new Random(world.getSeed());
+
+        int searchRadius = 5000; // Adjust based on world size
+        int attempts = 100; // Number of attempts to find a valid land biome
+
+        for (int i = 0; i < attempts; i++) {
+            int x = (rand.nextInt(searchRadius * 2) - searchRadius);
+            int z = (rand.nextInt(searchRadius * 2) - searchRadius);
+            Biome biome = pickBiome(x, z);
+
+            // Ensure the biome is not ocean
+            if (!isOceanBiome(biome)) {
+                BlockPos pos = world.getTopSolidOrLiquidBlock(new BlockPos(x, 0, z));
+                System.out.println("Found spawnable land biome: " + biome.getRegistryName() + " at " + pos);
+                return pos;
+            }
+        }
+
+        // Default fallback (should never happen)
+        System.out.println("WARNING: Could not find a valid spawn location, using default.");
+        return new BlockPos(0, 80, 0);
+    }
+
+    // Helper method to check if a biome is ocean
+    private boolean isOceanBiome(Biome biome) {
+        return biome == Biomes.OCEAN || biome == Biomes.DEEP_OCEAN || biome == Biomes.FROZEN_OCEAN;
+    }
+
 
 
     private Biome blendTwoBiomes(Biome[] arrA, Biome[] arrB, float alpha, int x, int z) {

@@ -4,10 +4,20 @@ import com.platuro.neoterra.config.BiomeConfig;
 import com.platuro.neoterra.handlers.PlayerEventHandler;
 import com.platuro.neoterra.worldgen.EarthlikeBiomeProvider;
 import com.platuro.neoterra.worldgen.NeoOreGenerator;
+import com.platuro.neoterra.worldgen.NeoTerraWorldType;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.WorldProviderSurface;
+import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.storage.AnvilChunkLoader;
+import net.minecraft.world.chunk.storage.IChunkLoader;
+import net.minecraft.world.chunk.storage.RegionFile;
+import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.terraingen.OreGenEvent;
 import net.minecraftforge.event.terraingen.PopulateChunkEvent;
@@ -23,6 +33,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Map;
 
 @Mod(modid = ClimateMod.MODID, name = ClimateMod.NAME, version = ClimateMod.VERSION)
 @Mod.EventBusSubscriber(modid = ClimateMod.MODID)
@@ -37,6 +50,7 @@ public class ClimateMod {
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        //new NeoTerraWorldType();
         logger = event.getModLog();
         logger.info("NeoClimate PreInit completed.");
         File configDir = event.getModConfigurationDirectory();
@@ -81,6 +95,12 @@ public class ClimateMod {
                 EarthlikeBiomeProvider customProvider = new EarthlikeBiomeProvider(actualSeed);
                 biomeProviderField.set(world.provider, customProvider);
                 System.out.println("Applied EarthlikeBiomeProvider with seed " + actualSeed + " to WorldProviderSurface.");
+
+                BlockPos spawnPos = customProvider.findSpawnLocation(world);
+
+                world.setSpawnPoint(spawnPos);
+                System.out.println("Set final spawn point to " + spawnPos);
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
