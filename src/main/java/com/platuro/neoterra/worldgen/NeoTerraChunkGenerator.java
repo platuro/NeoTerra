@@ -71,6 +71,9 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
                 double transitionFactor = MathHelper.clamp((blendFactor - 0.4f) / 0.8f, 0, 1);
                 terrainHeight = terrainHeight * transitionFactor + oceanDepth * (1 - transitionFactor) + landBoost;
 
+                // Apply coastline smoothing if near the ocean
+                terrainHeight = smoothCoastline(worldX, worldZ, terrainHeight, blendFactor);
+
                 // Clamp height to prevent extreme terrain
                 double finalHeight = MathHelper.clamp(terrainHeight, 1, 255);
                 heightMap[x][z] = finalHeight;
@@ -131,10 +134,21 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
 
 
     // **Ensures Oceans Stay Below Sea Level, But Keeps Terrain Flat**
+    // Ensures Oceans Stay Below Sea Level, Now Deeper and More Natural
     private double getEnforcedOceanDepth(int worldX, int worldZ, float blendFactor) {
-        double oceanNoise = terrainNoise.getValue(worldX * 0.002, worldZ * 0.002) * 3;
-        double oceanBase = seaLevel - 12 + oceanNoise; // Ensures deep oceans
-        double shallows = seaLevel - 3; // Keeps shallows higher
+        double oceanNoise = terrainNoise.getValue(worldX * 0.001, worldZ * 0.001) * 6; // More varied noise for ocean floor
+
+        double deepOceanBase = seaLevel - 40 + oceanNoise; // Make deep oceans much deeper
+        double oceanBase = seaLevel - 20 + oceanNoise;     // General ocean depth
+        double shallows = seaLevel - 5;                   // Shallow ocean level remains higher
+
+        // If it's a deep ocean biome, make it significantly deeper
+        Biome biome = biomeProvider.getBiome(new BlockPos(worldX, 0, worldZ));
+        if (biome == Biomes.DEEP_OCEAN) {
+            return MathHelper.clamp(deepOceanBase + blendFactor * (shallows - deepOceanBase), deepOceanBase, shallows);
+        }
+
+        // Regular oceans get a smoother depth transition
         return MathHelper.clamp(oceanBase + blendFactor * (shallows - oceanBase), oceanBase, shallows);
     }
 
@@ -171,6 +185,31 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
     private boolean isOceanBiome(Biome biome) {
         return biome == Biomes.OCEAN || biome == Biomes.DEEP_OCEAN || biome == Biomes.FROZEN_OCEAN;
     }
+
+    private double smoothCoastline(int worldX, int worldZ, double height, float blendFactor) {
+        double coastalEffect = 0;
+        double maxCoastDistance = 8.0; // Max distance for smoothing effect
+
+        // Check neighboring blocks to determine proximity to ocean
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                Biome neighborBiome = biomeProvider.getBiome(new BlockPos(worldX + dx * 4, 0, worldZ + dz * 4));
+                if (isOceanBiome(neighborBiome)) {
+                    double distance = Math.sqrt(dx * dx + dz * dz);
+                    double influence = MathHelper.clamp(1.0 - (distance / maxCoastDistance), 0, 1);
+                    coastalEffect += influence;
+                }
+            }
+        }
+
+        if (coastalEffect > 0) {
+            double coastFactor = MathHelper.clamp(coastalEffect, 0, 1);
+            height = seaLevel + (height - seaLevel) * (1 - coastFactor * 0.8); // 80% smooth transition
+        }
+
+        return height;
+    }
+
 
     @Override
     public void populate(int chunkX, int chunkZ) {
