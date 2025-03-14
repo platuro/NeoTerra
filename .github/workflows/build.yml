@@ -33,16 +33,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: 🔍 Check Repository Files
-        run: ls -l
-
-      - name: ⬇️ Ensure Gradle Wrapper Exists
-        run: |
-          if [ ! -f "gradlew" ]; then
-            echo "⚠️ Gradle wrapper missing! Regenerating..."
-            gradle wrapper --gradle-version 4.9 --distribution-type bin
-          fi
-
       - name: 🛠️ Grant Execute Permissions to Gradle Wrapper
         run: chmod +x gradlew
 
@@ -52,21 +42,26 @@ jobs:
       - name: 🏗️ Build the Mod with Gradle
         run: ./gradlew build --stacktrace --info
 
+      - name: 🔍 Extract Mod Version
+        id: extract_version
+        run: echo "MOD_VERSION=$(grep 'version =' build.gradle | awk -F"'" '{print $2}')" >> $GITHUB_ENV
+
+      - name: 📝 Print Extracted Version
+        run: echo $MOD_VERSION
+
       - name: 📦 Upload Built Mod Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NeoTerra-Mod
+          name: NeoTerra-Mod-${{ env.MOD_VERSION }}
           path: build/libs/*.jar
 
       - name: 📤 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: build/libs/*.jar
-          tag_name: latest
-          release_name: "Latest NeoTerra Build"
+          tag_name: "v${{ env.MOD_VERSION }}"
+          release_name: "NeoTerra Build ${{ env.MOD_VERSION }}"
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
-
-
