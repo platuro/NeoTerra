@@ -9,10 +9,8 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldProvider;
-import net.minecraft.world.WorldProviderSurface;
-import net.minecraft.world.WorldServer;
+import net.minecraft.world.*;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.AnvilChunkLoader;
 import net.minecraft.world.chunk.storage.IChunkLoader;
@@ -25,6 +23,7 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.Event;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -50,18 +49,23 @@ public class ClimateMod {
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        new NeoTerraWorldType();
         logger = event.getModLog();
-        logger.info("NeoClimate PreInit completed.");
+        logger.info("NeoTerra PreInit started.");
+
         File configDir = event.getModConfigurationDirectory();
         configFileBiome = new File(configDir, "neoterra/biome_config.cfg");
         BiomeConfig.loadConfig(configFileBiome);
-        //new NeoOreGenerator(configDir);
     }
+
+
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(new PlayerEventHandler());
     }
+
+
 
     private static Field getBiomeProviderField() throws NoSuchFieldException {
         // In a dev environment, the field might be called "biomeProvider"
@@ -105,4 +109,5 @@ public class ClimateMod {
             }
         }
     }
+
 }

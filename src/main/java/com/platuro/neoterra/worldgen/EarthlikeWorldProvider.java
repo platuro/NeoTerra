@@ -18,9 +18,4 @@ public class EarthlikeWorldProvider extends WorldProviderSurface {
     public DimensionType getDimensionType() {
         return DimensionType.OVERWORLD;
     }
-
-    @Override
-    public BiomeProvider getBiomeProvider() {
-        return this.customProvider;
-    }
 }

@@ -11,6 +11,7 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.gen.NoiseGeneratorPerlin;
+import net.minecraftforge.common.MinecraftForge;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -25,7 +26,6 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
     private final NoiseGeneratorPerlin riverNoise;
     private final Random random;
     private final int seaLevel = 63;
-    private final int minLandHeight = seaLevel + 1;  // Ensure land is always slightly above sea level
 
     public NeoTerraChunkGenerator(World world) {
         this.world = world;
@@ -40,44 +40,37 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
         ChunkPrimer primer = new ChunkPrimer();
         double[][] heightMap = new double[16][16];
 
+        // **Completely Remove Distance-Based Scaling**
+        double fixedHeightFactor = 1.0;  // Ensure land and ocean behave consistently
+
         // First pass: Generate terrain height map
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 int worldX = (chunkX << 4) + x;
                 int worldZ = (chunkZ << 4) + z;
 
-                // Get biome and smooth transition values
+                // Get biome and neighboring biomes for smooth transitions
                 Biome biome = biomeProvider.getBiome(new BlockPos(worldX, 0, worldZ));
                 float[] transitionData = getBiomeTransitionData(worldX, worldZ);
                 float blendFactor = transitionData[0]; // 0 = full ocean, 1 = full land
                 float avgBaseHeight = transitionData[1];
                 float avgHeightVariation = transitionData[2];
 
-                // **Generate smoother terrain**
-                double baseNoise = terrainNoise.getValue(worldX * 0.002, worldZ * 0.002) * 5; // Reduced impact
-                double terrainHeight = seaLevel + baseNoise + avgBaseHeight * 4 + avgHeightVariation * 2;
+                // **Absolute terrain noise without scaling over distance**
+                double baseNoise = terrainNoise.getValue(worldX * 0.002, worldZ * 0.002) * 10 * fixedHeightFactor;
+                double terrainHeight = seaLevel + baseNoise + avgBaseHeight * 8 + avgHeightVariation * 4;
 
-                // **Ensure Only Ocean Biomes Stay Below Sea Level**
-                double oceanDepth = getEnforcedOceanDepth(worldX, worldZ, blendFactor, biome);
+                // **Ensure Oceans Stay Below Sea Level**
+                double oceanDepth = getEnforcedOceanDepth(worldX, worldZ, blendFactor);
 
-                // **Force Land Biomes to Have a Minimum Height**
-                if (!isOceanBiome(biome)) {
-                    terrainHeight = Math.max(terrainHeight, minLandHeight); // Ensures land stays above water
-                }
+                // **Fix land not rising aggressively over distance**
+                double landBoost = blendFactor * 10;  // Ensures smooth elevation growth but no world scaling
 
-                // **Introduce a gradual coastal buffer** for smoother land transitions
-                double landBoost = MathHelper.clamp(blendFactor * 4, 0, 6);
-                if (blendFactor > 0.1 && blendFactor < 0.6) { // Apply near the coast
-                    double coastFactor = (blendFactor - 0.1) / (0.6 - 0.1);
-                    landBoost *= coastFactor; // Gradual elevation rise
-                    terrainHeight = Math.max(terrainHeight, seaLevel + 1); // Ensure coastline is flat before rising
-                }
-
-                // **Apply gradual land elevation instead of instant cliffs**
-                double transitionFactor = MathHelper.clamp((blendFactor - 0.05f) / 0.5f, 0, 1);
+                // **Smooth ocean-to-land transition while keeping heights stable**
+                double transitionFactor = MathHelper.clamp((blendFactor - 0.3f) / 0.6f, 0, 1);
                 terrainHeight = terrainHeight * transitionFactor + oceanDepth * (1 - transitionFactor) + landBoost;
 
-                // **Clamp height to prevent extreme elevation jumps**
+                // Clamp height to prevent extreme terrain
                 double finalHeight = MathHelper.clamp(terrainHeight, 1, 255);
                 heightMap[x][z] = finalHeight;
             }
@@ -119,28 +112,21 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
             }
         }
 
-        // Add water for oceans only
-        if (isOceanBiome(biome)) {
-            for (int y = height + 1; y <= seaLevel; y++) {
-                primer.setBlockState(x, y, z, Blocks.WATER.getDefaultState());
-            }
+        // Add water for oceans
+        for (int y = height + 1; y <= seaLevel; y++) {
+            primer.setBlockState(x, y, z, Blocks.WATER.getDefaultState());
         }
     }
 
-    private boolean isOceanBiome(Biome biome) {
-        return biome == Biome.getBiome(0) || biome == Biome.getBiome(24) || biome == Biome.getBiome(10);
+    // **Ensures Oceans Stay Below Sea Level, But Keeps Terrain Flat**
+    private double getEnforcedOceanDepth(int worldX, int worldZ, float blendFactor) {
+        double oceanNoise = terrainNoise.getValue(worldX * 0.002, worldZ * 0.002) * 3;
+        double oceanBase = seaLevel - 12 + oceanNoise; // Ensures deep oceans
+        double shallows = seaLevel - 3; // Keeps shallows higher
+        return MathHelper.clamp(oceanBase + blendFactor * (shallows - oceanBase), oceanBase, shallows);
     }
 
-    private double getEnforcedOceanDepth(int worldX, int worldZ, float blendFactor, Biome biome) {
-        if (isOceanBiome(biome)) {
-            double oceanNoise = terrainNoise.getValue(worldX * 0.002, worldZ * 0.002) * 1.0; // Reduced noise
-            double oceanBase = seaLevel - 8 + oceanNoise;  // Reduce depth slightly
-            double shallows = seaLevel - 3; // Higher shallows for better beaches
-            return MathHelper.clamp(oceanBase + (blendFactor * (shallows - oceanBase)), oceanBase, shallows);
-        }
-        return seaLevel; // Ensure land stays above water
-    }
-
+    // **Smooth biome transition calculation**
     private float[] getBiomeTransitionData(int worldX, int worldZ) {
         int sampleRadius = 2;
         int totalSamples = 0;
@@ -153,7 +139,7 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
                 Biome sampleBiome = biomeProvider.getBiome(new BlockPos(worldX + dx * 4, 0, worldZ + dz * 4));
                 totalSamples++;
 
-                if (!isOceanBiome(sampleBiome)) {
+                if (sampleBiome != Biome.getBiome(0) && sampleBiome != Biome.getBiome(24)) { // Not an ocean
                     nonOceanCount++;
                 }
 
