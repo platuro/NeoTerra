@@ -50,7 +50,6 @@ public class ClimateMod {
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        //new NeoTerraWorldType();
         logger = event.getModLog();
         logger.info("NeoClimate PreInit completed.");
         File configDir = event.getModConfigurationDirectory();
