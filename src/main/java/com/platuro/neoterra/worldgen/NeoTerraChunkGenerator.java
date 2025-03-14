@@ -2,6 +2,7 @@ package com.platuro.neoterra.worldgen;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.init.Biomes;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -64,10 +65,10 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
                 double oceanDepth = getEnforcedOceanDepth(worldX, worldZ, blendFactor);
 
                 // **Fix land not rising aggressively over distance**
-                double landBoost = blendFactor * 10;  // Ensures smooth elevation growth but no world scaling
+                double landBoost = blendFactor * 5;  // Ensures smooth elevation growth but no world scaling
 
                 // **Smooth ocean-to-land transition while keeping heights stable**
-                double transitionFactor = MathHelper.clamp((blendFactor - 0.3f) / 0.6f, 0, 1);
+                double transitionFactor = MathHelper.clamp((blendFactor - 0.4f) / 0.8f, 0, 1);
                 terrainHeight = terrainHeight * transitionFactor + oceanDepth * (1 - transitionFactor) + landBoost;
 
                 // Clamp height to prevent extreme terrain
@@ -81,6 +82,9 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
             for (int z = 0; z < 16; z++) {
                 int finalHeight = (int) heightMap[x][z];
                 Biome biome = biomeProvider.getBiome(new BlockPos((chunkX << 4) + x, 0, (chunkZ << 4) + z));
+                if (finalHeight < seaLevel && !isOceanBiome(biome)) {
+                    biome = Biomes.RIVER;
+                }
                 generateTerrainColumn(primer, x, z, finalHeight, biome);
             }
         }
@@ -104,6 +108,13 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
         IBlockState topBlock = biome.topBlock;
         IBlockState fillerBlock = biome.fillerBlock;
 
+        // If the biome is below sea level and it's not an ocean biome, classify it as a river
+        if (height < seaLevel && !isOceanBiome(biome)) {
+            biome = Biomes.RIVER;  // Override to river biome
+            topBlock = Biomes.RIVER.topBlock;
+            fillerBlock = Biomes.RIVER.fillerBlock;
+        }
+
         for (int y = 1; y <= height; y++) {
             if (y > height - 2) {  // Use top block at the surface
                 primer.setBlockState(x, y, z, topBlock);
@@ -112,11 +123,12 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
             }
         }
 
-        // Add water for oceans
+        // Add water for rivers and oceans
         for (int y = height + 1; y <= seaLevel; y++) {
             primer.setBlockState(x, y, z, Blocks.WATER.getDefaultState());
         }
     }
+
 
     // **Ensures Oceans Stay Below Sea Level, But Keeps Terrain Flat**
     private double getEnforcedOceanDepth(int worldX, int worldZ, float blendFactor) {
@@ -153,6 +165,11 @@ public class NeoTerraChunkGenerator implements IChunkGenerator {
         float avgHeightVariation = heightVariationSum / totalSamples;
 
         return new float[]{blend, avgBaseHeight, avgHeightVariation};
+    }
+
+    // Helper method to check if a biome is an ocean
+    private boolean isOceanBiome(Biome biome) {
+        return biome == Biomes.OCEAN || biome == Biomes.DEEP_OCEAN || biome == Biomes.FROZEN_OCEAN;
     }
 
     @Override
