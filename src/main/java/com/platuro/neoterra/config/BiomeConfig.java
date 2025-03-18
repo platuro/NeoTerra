@@ -42,8 +42,8 @@ public class BiomeConfig {
         Configuration config = new Configuration(configFile);
         config.load();
 
-        MAX_WORLD_HEIGHT = config.getInt("maxWorldHeight", CATEGORY_WORLD, 10000, 512, 100000, "Maximum world height.");
-        MAX_WORLD_WIDTH = config.getInt("maxWorldWidth", CATEGORY_WORLD, 10000, 512, 100000, "Maximum world width.");
+        MAX_WORLD_HEIGHT = config.getInt("maxWorldHeight", CATEGORY_WORLD, 10000, 512, 10000000, "Maximum world height.");
+        MAX_WORLD_WIDTH = config.getInt("maxWorldWidth", CATEGORY_WORLD, 10000, 512, 10000000, "Maximum world width.");
         CONTINENT_SCALE_MULTIPLIER = config.getFloat("continentScaleMultiplier", CATEGORY_WORLD, 1, 0.1f, 10, "Continent scale multiplier.");
         WORLD_SHIFT_VALUE = (float) config.getFloat("worldShiftValue", CATEGORY_WORLD, 0.0f, -1f, 1f, "World shift value.");
 

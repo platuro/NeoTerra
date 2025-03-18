@@ -3,6 +3,7 @@ package com.platuro.neoterra;
 import com.platuro.neoterra.config.BiomeConfig;
 import com.platuro.neoterra.handlers.PlayerEventHandler;
 import com.platuro.neoterra.worldgen.EarthlikeBiomeProvider;
+import com.platuro.neoterra.worldgen.EarthlikeWorldProvider;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.*;
@@ -10,6 +11,7 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.ChunkProviderServer;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -32,6 +34,15 @@ public class ClimateMod {
 
     private static Logger logger = LogManager.getLogger(NAME);
     private static File configFileBiome;
+
+    public static final DimensionType NEO_OVERWORLD = DimensionType.register(
+            "NeoOverworld",    // internal name
+            "_neo_overworld",  // save folder suffix
+            0,                 // dimension ID = 0
+            EarthlikeWorldProvider.class,
+            false
+    );
+
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
@@ -60,7 +71,7 @@ public class ClimateMod {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onCreateSpawn(WorldEvent.CreateSpawnPosition event) {
-        try {
+        /*try {
             World world = event.getWorld();
             if (world == null || world.isRemote) return;
 
@@ -72,12 +83,19 @@ public class ClimateMod {
             }
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
     }
+
+    @Mod.EventHandler
+    public static void onServerAboutToStart(FMLServerAboutToStartEvent event) {
+        DimensionManager.unregisterDimension(0);
+        DimensionManager.registerDimension(0, NEO_OVERWORLD);
+    }
+
 
     @SubscribeEvent
     public static void onWorldLoad(WorldEvent.Load event) {
-        BiomeConfig.loadConfig(configFileBiome);
+        /*BiomeConfig.loadConfig(configFileBiome);
         World world = event.getWorld();
 
         if (!world.isRemote) {
@@ -92,6 +110,6 @@ public class ClimateMod {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
+        }*/
     }
 }

@@ -9,6 +9,7 @@ public class EarthlikeWorldProvider extends WorldProviderSurface {
 
     @Override
     public void init() {
+        super.init();
         // Create your custom biome provider once
         this.customProvider = new EarthlikeBiomeProvider(this.world.getSeed());
         this.biomeProvider = customProvider;
@@ -18,4 +19,10 @@ public class EarthlikeWorldProvider extends WorldProviderSurface {
     public DimensionType getDimensionType() {
         return DimensionType.OVERWORLD;
     }
+
+    @Override
+    public boolean isSurfaceWorld() {
+        return true;
+    }
+
 }
