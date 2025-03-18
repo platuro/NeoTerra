@@ -53,10 +53,16 @@ public class BiomeConfig {
         CLIMATE_FADE = (float) config.getFloat("climateFade", CATEGORY_CLIMATE, 0.08f, 0f, 1f, "Smooth transition between biome zones.");
 
         setBiomeWeight(Biomes.SWAMPLAND, 0.2f);
-        setBiomeWeight(BOP.getBOPBiome("bamboo_forest"), 0.2f);
-        setBiomeWeight(BOP.getBOPBiome("lush_desert"), 0.1f);
+        setBiomeWeight(Biomes.DESERT, 2f);
+        setBiomeWeight(BOP.getBOPBiome("bamboo_forest"), 0.1f);
+        //setBiomeWeight(BOP.getBOPBiome("lush_desert"), 0.1f);
+        setBiomeWeight(BOP.getBOPBiome("dead_forest"), 0.1f);
         setBiomeWeight(BOP.getBOPBiome("tundra"), 0.2f);
-        setBiomeWeight(BOP.getBOPBiome("orchard"), 0.4f);
+        setBiomeWeight(BOP.getBOPBiome("orchard"), 0.5f);
+        setBiomeWeight(BOP.getBOPBiome("coniferous_forest"), 1.5f);
+        setBiomeWeight(Biomes.MESA, 0.1f);
+        setBiomeWeight(Biomes.MESA_ROCK, 0.1f);
+        setBiomeWeight(Biomes.MUTATED_MESA_CLEAR_ROCK, 0.3f);
 
         if (config.hasChanged()) {
             config.save();

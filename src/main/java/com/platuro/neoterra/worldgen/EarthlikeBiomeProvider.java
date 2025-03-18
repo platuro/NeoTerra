@@ -81,7 +81,9 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
             Biomes.DESERT,
             Biomes.SAVANNA,
             Biomes.JUNGLE,
-            Biomes.MESA
+            Biomes.MESA,
+            Biomes.MESA_ROCK,
+            Biomes.MUTATED_MESA_CLEAR_ROCK
     ));
 
     // After reflection, we store final arrays
@@ -130,11 +132,11 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
 
             // 2) For each BOP field, we do getBOPBiomeOptional(bopClass, "alps") etc.
             Biome alps    = BOP.getBOPBiome("alps");
-            Biome tundra  = getBOPBiomeOptional(bopClass, "tundra");
-            Biome orchard = getBOPBiomeOptional(bopClass, "orchard");
-            Biome lushDesert = getBOPBiomeOptional(bopClass, "lush_desert");
-            Biome tropRainforest = getBOPBiomeOptional(bopClass, "tropical_rainforest");
-            Biome coniferous_forest = getBOPBiomeOptional(bopClass, "coniferous_forest");
+            Biome tundra  = BOP.getBOPBiome("tundra");
+            Biome orchard = BOP.getBOPBiome("orchard");
+            Biome lushDesert = BOP.getBOPBiome("lush_desert");
+            Biome tropRainforest = BOP.getBOPBiome("tropical_rainforest");
+            Biome coniferous_forest = BOP.getBOPBiome("coniferous_forest");
             Biome snowy_coniferous_forest = getBOPBiomeOptional(bopClass, "snowy_coniferous_forest");
             Biome dead_forest = getBOPBiomeOptional(bopClass, "dead_forest");
             Biome grove  = getBOPBiomeOptional(bopClass, "grove");
@@ -148,13 +150,13 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
                 frozenVanilla.add(alps);
             }
             if (tundra != null) {
-                hotVanilla.add(tundra);
+                //hotVanilla.add(tundra);
             }
             if (orchard != null) {
                 warmVanilla.add(orchard);
             }
             if (lushDesert != null) {
-                hotVanilla.add(lushDesert);
+                //hotVanilla.add(lushDesert);
             }
             if (tropRainforest != null) {
                 hotVanilla.add(tropRainforest);
@@ -166,7 +168,7 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
                 coldVanilla.add(snowy_coniferous_forest);
             }
             if (dead_forest != null) {
-                hotVanilla.add(dead_forest);
+                //hotVanilla.add(dead_forest);
             }
             if (grove != null) {
                 hotVanilla.add(grove);
@@ -295,19 +297,9 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     @Override
     public List<Biome> getBiomesToSpawnIn() {
         List<Biome> result = new ArrayList<>();
-        result.addAll(Arrays.asList(FROZEN_BIOMES));
-        result.addAll(Arrays.asList(COLD_BIOMES));
         result.addAll(Arrays.asList(WARM_BIOMES));
-        result.addAll(Arrays.asList(HOT_BIOMES));
-        // Explicitly add vanilla stronghold biomes:
         result.add(Biomes.PLAINS);
-        result.add(Biomes.DESERT);
-        result.add(Biomes.EXTREME_HILLS);
         result.add(Biomes.FOREST);
-        result.add(Biomes.SAVANNA);
-        result.add(Biomes.TAIGA);
-        // Also add beaches and oceans if you like:
-        result.addAll(Arrays.asList(Biomes.BEACH, Biomes.OCEAN, Biomes.DEEP_OCEAN));
         return result;
     }
 
@@ -380,11 +372,11 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         }
 
         // 6) land => pick climate zone
-        return pickLatitudeBiome(x, z, baseLatVal);
+        return pickLatitudeBiome(x, z, baseLatVal, (float) finalVal);
     }
 
     // ~~~~~~~~~ LATITUDE-BASED CLIMATE with wave ~~~~~~~~~
-    private Biome pickLatitudeBiome(int x, int z, float baseLatVal) {
+    private Biome pickLatitudeBiome(int x, int z, float baseLatVal, float finalVal) {
         // wave for lat boundary
         double wv = waveNoise.getValue(x * WAVE_SCALE, z * WAVE_SCALE) * WAVE_AMPLITUDE;
         float latVal = (float)(baseLatVal + wv);
@@ -394,56 +386,94 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         if (latVal > FROZEN_START - CLIMATE_FADE) {
             float alpha = fadeAlpha(latVal, FROZEN_START - CLIMATE_FADE, FROZEN_START + CLIMATE_FADE);
             if (latVal < FROZEN_START) {
-                return blendTwoBiomes(COLD_BIOMES, FROZEN_BIOMES, alpha, x, z);
+                return blendTwoBiomes(COLD_BIOMES, FROZEN_BIOMES, alpha, x, z, finalVal);
             }
-            return pickSubBiome(FROZEN_BIOMES, x, z);
+            return pickSubBiome(FROZEN_BIOMES, x, z, finalVal);
         }
 
         if (latVal > COLD_START - CLIMATE_FADE) {
             float alpha = fadeAlpha(latVal, COLD_START - CLIMATE_FADE, COLD_START + CLIMATE_FADE);
             if (latVal < COLD_START) {
-                return blendTwoBiomes(WARM_BIOMES, COLD_BIOMES, alpha, x, z);
+                return blendTwoBiomes(WARM_BIOMES, COLD_BIOMES, alpha, x, z, finalVal);
             }
-            return pickSubBiome(COLD_BIOMES, x, z);
+            return pickSubBiome(COLD_BIOMES, x, z, finalVal);
         }
 
         if (latVal > WARM_START - CLIMATE_FADE) {
             float alpha = fadeAlpha(latVal, WARM_START - CLIMATE_FADE, WARM_START + CLIMATE_FADE);
             if (latVal < WARM_START) {
-                return blendTwoBiomes(HOT_BIOMES, WARM_BIOMES, alpha, x, z);
+                return blendTwoBiomes(HOT_BIOMES, WARM_BIOMES, alpha, x, z, finalVal);
             }
-            return pickSubBiome(WARM_BIOMES, x, z);
+            return pickSubBiome(WARM_BIOMES, x, z, finalVal);
         }
 
         // near equator => HOT
-        return pickSubBiome(HOT_BIOMES, x, z);
+        return pickSubBiome(HOT_BIOMES, x, z, finalVal);
     }
 
     // ~~~~~~~~~ Sub-biome lumps with ocean-restricted rare biomes ~~~~~~~~~
-    private Biome pickSubBiome(Biome[] biomes, int x, int z) {
+    /**
+     * Overloaded version that uses finalVal to detect closeness to ocean.
+     */
+    private Biome pickSubBiome(Biome[] biomes, int x, int z, double finalVal) {
+        // 1) Check how far above OCEAN_LEVEL we are
+        double coastFactor = finalVal - OCEAN_LEVEL; // if this is small, we are near coastline
+        // e.g. define a small band for "coastal zone"
+        final double COAST_BAND = 0.05;
+        boolean isCoastalZone = (coastFactor >= 0.0 && coastFactor < COAST_BAND);
+
+        // 2) Weighted Biome Selection, but adjusted for coastal preference
+        double totalWeight = 0.0;
+        List<Biome> allBiomes = Arrays.asList(biomes);
+
+        // We'll store adjusted weights in a small array, to keep track
+        double[] adjustedWeights = new double[biomes.length];
+
+        for (int i = 0; i < biomes.length; i++) {
+            Biome b = biomes[i];
+            float baseWeight = (float) BiomeConfig.getBiomeWeight(b);
+            float adjWeight = baseWeight;
+
+            // If near coast, boost swamp or other watery biomes
+            if (isCoastalZone && b == Biomes.SWAMPLAND) {
+                adjWeight *= 2.0f; // e.g. double the chance
+            }
+            if(!isCoastalZone && b == Biomes.SWAMPLAND){
+                adjWeight = 0;
+            }
+            if(isCoastalZone && b == BOP.getBOPBiome("tropical_rainforest")){
+                adjWeight *= 2.0f;
+            }
+            if(!isCoastalZone && b == BOP.getBOPBiome("tropical_rainforest")){
+                adjWeight = 0;
+            }
+            // If you want other logic for "inland boost," do it here:
+            // if (!isCoastalZone && b == Biomes.PLAINS) { adjWeight *= 1.5f; }
+
+            adjustedWeights[i] = adjWeight;
+            totalWeight += adjWeight;
+        }
+
+        // 3) Do the standard random pick from these adjusted weights
         double val = fractalNoise(subBiomeNoise, x, z,
                 BIOME_PATCH_OCTAVES, BIOME_PATCH_PERSIST,
                 BIOME_PATCH_SCALE, BIOME_PATCH_LACUNAR);
-        double t = (val + 1.0) / 2.0; // Normalize to range [0,1]
-
-        // Weighted Biome Selection
-        double totalWeight = 0;
-        for (Biome biome : biomes) {
-            totalWeight += BiomeConfig.getBiomeWeight(biome);
-        }
+        double t = (val + 1.0) / 2.0; // normalize [0..1]
 
         double randomValue = t * totalWeight;
-        double cumulativeWeight = 0;
+        double cumulativeWeight = 0.0;
 
-        for (Biome biome : biomes) {
-            cumulativeWeight += BiomeConfig.getBiomeWeight(biome);
+        for (int i = 0; i < biomes.length; i++) {
+            cumulativeWeight += adjustedWeights[i];
             if (randomValue <= cumulativeWeight) {
-                return biome;
+                return biomes[i];
             }
         }
 
-        return biomes[biomes.length - 1]; // Default fallback
+        // fallback
+        return biomes[biomes.length - 1];
     }
+
 
 
 
@@ -517,10 +547,10 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         return baseBiome;
     }
 
-    private Biome blendTwoBiomes(Biome[] arrA, Biome[] arrB, float alpha, int x, int z) {
+    private Biome blendTwoBiomes(Biome[] arrA, Biome[] arrB, float alpha, int x, int z, float finalVal) {
         return (alpha < 0.5f)
-                ? pickSubBiome(arrA, x, z)
-                : pickSubBiome(arrB, x, z);
+                ? pickSubBiome(arrA, x, z, finalVal)
+                : pickSubBiome(arrB, x, z, finalVal);
     }
 
     // ~~~~~~~~~ NOISE & FADE HELPERS ~~~~~~~~~
