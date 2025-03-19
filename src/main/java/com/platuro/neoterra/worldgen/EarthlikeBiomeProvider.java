@@ -106,6 +106,19 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private static final double POLAR_WAVE_SCALE     = 0.001;
     private static final double POLAR_WAVE_AMPLITUDE = BiomeConfig.POLAR_WAVES;
 
+    // Optionally define some tuning constants:
+    private static final int    MOIST_OCTAVES   = 5;
+    private static final double MOIST_PERSIST   = 0.5;
+    private static final double MOIST_SCALE     = 0.0005;  // Larger => bigger wet/dry regions
+    private static final double MOIST_LACUNAR   = 2.0;
+
+    // Mountain noise parameters
+    private static final int    MOUNTAIN_OCTAVES   = 4;
+    private static final double MOUNTAIN_PERSIST   = 0.5;
+    private static final double MOUNTAIN_SCALE     = 0.0003;
+    private static final double MOUNTAIN_LACUNAR   = 2.0;
+
+
     // ~~~~~~~~~ NOISE INSTANCES ~~~~~~~~~
     private final NoiseGeneratorSimplex continentNoise;
     private final NoiseGeneratorSimplex detailNoise;
@@ -113,6 +126,9 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     private final NoiseGeneratorSimplex waveNoise;
     private final NoiseGeneratorSimplex polarWaveNoise;
     private final NoiseGeneratorSimplex biomeClusterNoise; // New noise for blobs
+    private final NoiseGeneratorSimplex moistureNoise;
+    // Noise for mountains:
+    private final NoiseGeneratorSimplex mountainNoise;
 
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -226,6 +242,8 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         Random randSubBiome  = new Random(seed + 2);
         Random randWave      = new Random(seed + 3);
         Random randPolarWave = new Random(seed + 4);
+        Random randMoisture = new Random(seed + 20);  // offset so it's different from continentNoise
+        Random randMountain = new Random(seed + 30);
 
         this.continentNoise = new NoiseGeneratorSimplex(randContinent);
         this.detailNoise    = new NoiseGeneratorSimplex(randDetail);
@@ -233,6 +251,8 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         this.waveNoise      = new NoiseGeneratorSimplex(randWave);
         this.polarWaveNoise = new NoiseGeneratorSimplex(randPolarWave);
         this.biomeClusterNoise = new NoiseGeneratorSimplex(new Random(seed + 5));
+        this.moistureNoise = new NoiseGeneratorSimplex(randMoisture);
+        this.mountainNoise = new NoiseGeneratorSimplex(randMountain);
     }
 
     public EarthlikeBiomeProvider() {
@@ -298,6 +318,9 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
     public List<Biome> getBiomesToSpawnIn() {
         List<Biome> result = new ArrayList<>();
         result.addAll(Arrays.asList(WARM_BIOMES));
+        result.addAll(Arrays.asList(HOT_BIOMES));
+        result.addAll(Arrays.asList(COLD_BIOMES));
+        result.addAll(Arrays.asList(FROZEN_BIOMES));
         result.add(Biomes.PLAINS);
         result.add(Biomes.FOREST);
         return result;
@@ -383,33 +406,110 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         if (latVal < 0f) latVal = 0f;
         if (latVal > 1f) latVal = 1f;
 
-        if (latVal > FROZEN_START - CLIMATE_FADE) {
-            float alpha = fadeAlpha(latVal, FROZEN_START - CLIMATE_FADE, FROZEN_START + CLIMATE_FADE);
-            if (latVal < FROZEN_START) {
-                return blendTwoBiomes(COLD_BIOMES, FROZEN_BIOMES, alpha, x, z, finalVal);
-            }
-            return pickSubBiome(FROZEN_BIOMES, x, z, finalVal);
-        }
-
-        if (latVal > COLD_START - CLIMATE_FADE) {
-            float alpha = fadeAlpha(latVal, COLD_START - CLIMATE_FADE, COLD_START + CLIMATE_FADE);
-            if (latVal < COLD_START) {
-                return blendTwoBiomes(WARM_BIOMES, COLD_BIOMES, alpha, x, z, finalVal);
-            }
-            return pickSubBiome(COLD_BIOMES, x, z, finalVal);
-        }
-
-        if (latVal > WARM_START - CLIMATE_FADE) {
-            float alpha = fadeAlpha(latVal, WARM_START - CLIMATE_FADE, WARM_START + CLIMATE_FADE);
-            if (latVal < WARM_START) {
-                return blendTwoBiomes(HOT_BIOMES, WARM_BIOMES, alpha, x, z, finalVal);
-            }
-            return pickSubBiome(WARM_BIOMES, x, z, finalVal);
-        }
-
-        // near equator => HOT
-        return pickSubBiome(HOT_BIOMES, x, z, finalVal);
+        // Instead of checking FROZEN_START, COLD_START, etc. here,
+        // we'll rely on the new pickBiomeWithTempAndMoist() for everything:
+        return pickBiomeWithTempAndMoist(x, z, latVal, finalVal);
     }
+
+    /**
+     * Picks a biome using your FROZEN_START, COLD_START, WARM_START
+     * plus an extra moisture dimension for dryness/wetness.
+     */
+    private Biome pickBiomeWithTempAndMoist(int x, int z, float latVal, float finalVal) {
+        // 1) Get moisture in [0..1]
+        float moistVal = getMoistureValue(x, z);
+
+        float mountainVal = getMountainFactor(x, z);
+        if (mountainVal > 0.4f) {
+            float excess = mountainVal - 0.7f;
+            latVal -= excess / 0.3f * 0.2f;
+            if (latVal < 0f) latVal = 0f;
+        }
+        if (mountainVal > 0.85f && latVal > WARM_START) {
+            // forcibly pick a mountain-type biome, e.g. Alps (BOP) or Extreme Hills
+            return BOP.getBOPBiome("alps") != null ? BOP.getBOPBiome("alps") : Biomes.EXTREME_HILLS;
+        }
+
+
+        moistVal = applyDistanceDryness(moistVal, finalVal);
+
+        Biome[] possibleBiomes;
+
+        // 2) Determine which zone based on your starts
+        if (latVal > FROZEN_START) {
+            // FROZEN zone
+            // Usually it doesn't matter if it's "dry" or "wet" – it's all ice/snow
+            possibleBiomes = new Biome[] {
+                    Biomes.ICE_PLAINS,
+                    Biomes.ICE_MOUNTAINS
+            };
+        }
+        else if (latVal > COLD_START) {
+            // COLD zone
+            if (moistVal < 0.3f) {
+                // cold + dry => Tundra or some cold plains
+                possibleBiomes = new Biome[] {
+                        BOP.getBOPBiome("tundra"),
+                        Biomes.COLD_TAIGA
+                };
+            } else {
+                // cold + wet => Taiga, Snowy Coniferous
+                possibleBiomes = new Biome[] {
+                        Biomes.COLD_TAIGA,
+                        BOP.getBOPBiome("snowy_coniferous_forest")
+                };
+            }
+        }
+        else if (latVal > WARM_START) {
+            // WARM zone
+            if (moistVal < 0.3f) {
+                // warm + dry => Plains, maybe orchard
+                possibleBiomes = new Biome[]{
+                        Biomes.PLAINS,
+                        BOP.getBOPBiome("orchard")
+                };
+            } else if (moistVal < 0.6f) {
+                // warm + medium => Forest
+                possibleBiomes = new Biome[] {
+                        Biomes.FOREST,
+                        BOP.getBOPBiome("coniferous_forest")
+                };
+            } else {
+                // warm + wet => Swamp or Bayou
+                possibleBiomes = new Biome[] {
+                        Biomes.SWAMPLAND,
+                        BOP.getBOPBiome("bamboo_forest")
+                };
+            }
+        }
+        else {
+            // HOT zone (latVal <= WARM_START)
+            if (moistVal < 0.3f) {
+                // hot + dry => Desert
+                possibleBiomes = new Biome[] {
+                        Biomes.DESERT,
+                        Biomes.MESA
+                };
+            } else if (moistVal < 0.6f) {
+                // hot + medium => Savanna
+                possibleBiomes = new Biome[] {
+                        Biomes.SAVANNA
+                };
+            } else {
+                // hot + wet => Jungle, Tropical Rainforest
+                possibleBiomes = new Biome[] {
+                        Biomes.JUNGLE,
+                        BOP.getBOPBiome("tropical_rainforest")
+                };
+            }
+        }
+
+        // 3) Now pick from that array, using the coastal weighting logic
+        return pickSubBiome(possibleBiomes, x, z, finalVal);
+    }
+
+
+
 
     // ~~~~~~~~~ Sub-biome lumps with ocean-restricted rare biomes ~~~~~~~~~
     /**
@@ -588,4 +688,75 @@ public class EarthlikeBiomeProvider extends BiomeProvider {
         if (latVal >= maxVal) return 1f;
         return (latVal - minVal) / (maxVal - minVal);
     }
+
+    /****
+     * Computes a normalized moisture value in [0..1].
+     *  - 0.0 => extremely dry
+     *  - 1.0 => extremely wet
+     ****/
+    private float getMoistureValue(int x, int z) {
+        double moistVal = fractalNoise(
+                this.moistureNoise,
+                x, z,
+                MOIST_OCTAVES,
+                MOIST_PERSIST,
+                MOIST_SCALE,
+                MOIST_LACUNAR
+        );
+        // convert from [-1..+1] to [0..1]
+        return (float)((moistVal + 1.0) / 2.0);
+    }
+
+    /**
+     * Applies a dryness penalty the farther you are from the ocean threshold.
+     *
+     * @param moistVal current moisture in [0..1]
+     * @param finalVal your continent noise result (+ detail)
+     * @return adjusted moisture
+     */
+    private float applyDistanceDryness(float moistVal, double finalVal) {
+        // If finalVal == OCEAN_LEVEL => you're at the shore
+        // If finalVal >> OCEAN_LEVEL => you're deep inland
+
+        // Let's define some range above OCEAN_LEVEL where dryness ramps up
+        double INLAND_THRESHOLD = 0.4; // how far above OCEAN_LEVEL we consider "deep inland"
+
+        double distanceAboveOcean = finalVal - OCEAN_LEVEL;
+        if (distanceAboveOcean <= 0) {
+            // at or below ocean threshold => no dryness penalty
+            return moistVal;
+        }
+
+        // Convert distance to [0..1] scale up to INLAND_THRESHOLD
+        double alpha = distanceAboveOcean / INLAND_THRESHOLD;
+        if (alpha > 1.0) alpha = 1.0;
+        // alpha=0 => no dryness penalty, alpha=1 => max dryness penalty
+
+        // Let's define a "max dryness" shift, e.g. 0.2 => we subtract up to 0.2 from moistVal
+        float drynessPenalty = 0.2f;
+        float newMoistVal = moistVal - (float)(alpha * drynessPenalty);
+        if (newMoistVal < 0f) newMoistVal = 0f;
+        return newMoistVal;
+    }
+
+    /**
+     * Returns how "mountainous" the area is, in [0..1].
+     *  0 => flat plains
+     *  1 => very high mountains
+     */
+    private float getMountainFactor(int x, int z) {
+        double val = fractalNoise(
+                this.mountainNoise,
+                x, z,
+                MOUNTAIN_OCTAVES,
+                MOUNTAIN_PERSIST,
+                MOUNTAIN_SCALE,
+                MOUNTAIN_LACUNAR
+        );
+        // val is in [-1..+1]. Normalize to [0..1].
+        float factor = (float)((val + 1.0) / 2.0);
+        return factor;
+    }
+
+
 }

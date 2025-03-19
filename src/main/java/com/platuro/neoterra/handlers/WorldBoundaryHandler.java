@@ -1,4 +1,4 @@
-package com.platuro.neoterra.worldgen;
+package com.platuro.neoterra.handlers;
 
 import com.platuro.neoterra.config.BiomeConfig;
 import net.minecraft.entity.Entity;
